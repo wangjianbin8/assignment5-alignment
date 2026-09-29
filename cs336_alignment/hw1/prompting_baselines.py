@@ -139,7 +139,7 @@ server = VLLMServer(
 
 def evaluate(prompt_type):
     #加载数据
-    data = load_gsm8k("data/gsm8k/test.jsonl")[:20]
+    data = load_gsm8k("data/gsm8k/test.jsonl")[:2]
     #生成提示词
     prompts = build_prompts(data, prompt_type)
     #生成答案
