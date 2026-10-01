@@ -10,6 +10,7 @@ from transformers import PreTrainedTokenizerBase
 from cs336_alignment.hw1.tokenize_prompt_and_output import tokenize_prompt_and_output
 from cs336_alignment.hw1.get_response_log_probs import get_response_log_probs
 from cs336_alignment.hw1.compute_rollout_rewards import compute_rollout_rewards
+from cs336_alignment.hw1.compute_group_normalized_rewards_grpo import compute_group_normalized_rewards
 
 def run_tokenize_prompt_and_output(
     prompt_strs: list[str],
@@ -153,7 +154,7 @@ def run_compute_group_normalized_rewards(
                 your choice of other statistics to log (e.g. mean, std, max/min
                 of rewards).
     """
-    raise NotImplementedError
+    return compute_group_normalized_rewards(raw_rewards=raw_rewards, group_size=group_size, baseline=baseline, advantage_eps=advantage_eps, advantage_normalizer=advantage_normalizer)
 
 
 def run_compute_policy_gradient_loss(
