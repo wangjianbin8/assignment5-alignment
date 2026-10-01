@@ -11,6 +11,7 @@ from cs336_alignment.hw1.tokenize_prompt_and_output import tokenize_prompt_and_o
 from cs336_alignment.hw1.get_response_log_probs import get_response_log_probs
 from cs336_alignment.hw1.compute_rollout_rewards import compute_rollout_rewards
 from cs336_alignment.hw1.compute_group_normalized_rewards_grpo import compute_group_normalized_rewards
+from cs336_alignment.hw1.compute_policy_gradient_loss_on_policy import compute_policy_gradient_loss
 
 def run_tokenize_prompt_and_output(
     prompt_strs: list[str],
@@ -201,7 +202,7 @@ def run_compute_policy_gradient_loss(
                 Statistics from the underlying loss call, such as
                 clip-fraction components.
     """
-    raise NotImplementedError
+    return compute_policy_gradient_loss(raw_rewards_or_advantages=raw_rewards_or_advantages, policy_log_probs=policy_log_probs, importance_reweighting_method=importance_reweighting_method, old_log_probs=old_log_probs, cliprange=cliprange, response_mask=response_mask)
 
 
 def run_aggregate_loss_across_microbatch(
