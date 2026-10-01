@@ -12,6 +12,7 @@ from cs336_alignment.hw1.get_response_log_probs import get_response_log_probs
 from cs336_alignment.hw1.compute_rollout_rewards import compute_rollout_rewards
 from cs336_alignment.hw1.compute_group_normalized_rewards_grpo import compute_group_normalized_rewards
 from cs336_alignment.hw1.compute_policy_gradient_loss_on_policy import compute_policy_gradient_loss
+from cs336_alignment.hw1.aggregate_loss_across_microbatch_sequence import aggregate_loss_across_microbatch
 
 def run_tokenize_prompt_and_output(
     prompt_strs: list[str],
@@ -234,7 +235,7 @@ def run_aggregate_loss_across_microbatch(
             A scalar containing the average loss. Make sure you can later call
             backward on this loss.
     """
-    raise NotImplementedError
+    return aggregate_loss_across_microbatch(per_token_policy_gradient_loss=per_token_policy_gradient_loss,mask=mask, loss_normalization=loss_normalization, normalization_constant=normalization_constant)
 
 
 def run_grpo_train_step(
