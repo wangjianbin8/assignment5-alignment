@@ -13,6 +13,7 @@ from cs336_alignment.hw1.compute_rollout_rewards import compute_rollout_rewards
 from cs336_alignment.hw1.compute_group_normalized_rewards_grpo import compute_group_normalized_rewards
 from cs336_alignment.hw1.compute_policy_gradient_loss_on_policy import compute_policy_gradient_loss
 from cs336_alignment.hw1.aggregate_loss_across_microbatch_sequence import aggregate_loss_across_microbatch
+from cs336_alignment.hw1.grpo_train_step_standard_on_policy import grpo_train_step
 
 def run_tokenize_prompt_and_output(
     prompt_strs: list[str],
@@ -324,8 +325,26 @@ def run_grpo_train_step(
                 Dict with metadata from the underlying loss call, gradient norm
                 before clipping, and any other statistics you might want to log.
     """
-    raise NotImplementedError
-
+    return grpo_train_step(
+        model=model,
+        tokenizer=tokenizer,
+        optimizer=optimizer,
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        max_grad_norm=max_grad_norm,
+        reward_fn=reward_fn,
+        repeated_prompts=repeated_prompts,
+        rollout_responses=rollout_responses,
+        repeated_ground_truths=repeated_ground_truths,
+        group_size=group_size,
+        baseline=baseline,
+        advantage_eps=advantage_eps,
+        advantage_normalizer=advantage_normalizer,
+        importance_reweighting_method=importance_reweighting_method,
+        old_log_probs=old_log_probs,
+        cliprange=cliprange,
+        loss_normalization=loss_normalization,
+        normalization_constant=normalization_constant,
+    )
 
 """
 The below adapters are used in the optional 

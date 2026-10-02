@@ -6,10 +6,16 @@ import torch
 from torch.optim import Optimizer
 from transformers import PreTrainedModel, PreTrainedTokenizer
 
-from cs336_alignment.hw1 import compute_rollout_rewards, get_response_log_probs, tokenize_prompt_and_output
-from cs336_alignment.hw1.aggregate_loss_across_microbatch_sequence import aggregate_loss_across_microbatch
+
+from cs336_alignment.hw1.compute_rollout_rewards import compute_rollout_rewards
 from cs336_alignment.hw1.compute_group_normalized_rewards_grpo import compute_group_normalized_rewards
+from cs336_alignment.hw1.tokenize_prompt_and_output import tokenize_prompt_and_output
+
+from cs336_alignment.hw1.get_response_log_probs import get_response_log_probs
 from cs336_alignment.hw1.compute_policy_gradient_loss_on_policy import compute_policy_gradient_loss
+from cs336_alignment.hw1.aggregate_loss_across_microbatch_sequence import aggregate_loss_across_microbatch
+
+
 
 
 def grpo_train_step(
@@ -47,6 +53,11 @@ def grpo_train_step(
     torch.Tensor,
     dict[str, torch.Tensor | float]
 ]:
+
+    # --------------------------------------------------
+    # 0. 这部分作业只支持 standard on-policy GRPO
+    # --------------------------------------------------
+
     if baseline != "mean":
         raise NotImplementedError(
             f"Unsupported baseline: {baseline}"
@@ -70,12 +81,16 @@ def grpo_train_step(
             f"{loss_normalization}"
         )
 
+
     full_batch_size = len(rollout_responses)
+
     device = next(model.parameters()).device
+
 
     # --------------------------------------------------
     # 1. Reward
     # --------------------------------------------------
+
     raw_rewards, reward_metadata = (
         compute_rollout_rewards(
             reward_fn,
@@ -84,9 +99,11 @@ def grpo_train_step(
         )
     )
 
+
     # --------------------------------------------------
     # 2. Group-normalized advantage
     # --------------------------------------------------
+
     advantages, advantage_metadata = (
         compute_group_normalized_rewards(
             raw_rewards,
@@ -97,18 +114,22 @@ def grpo_train_step(
         )
     )
 
+
     # --------------------------------------------------
     # 3. Tokenize prompt + rollout
     # --------------------------------------------------
+
     train_batch = tokenize_prompt_and_output(
         repeated_prompts,
         rollout_responses,
         tokenizer,
     )
 
+
     # --------------------------------------------------
     # 4. 准备 gradient accumulation
     # --------------------------------------------------
+
     optimizer.zero_grad()
 
     microbatch_size = math.ceil(
@@ -126,36 +147,66 @@ def grpo_train_step(
         device=device,
     )
 
+
     # --------------------------------------------------
     # 5. 一个个 microbatch forward + backward
     # --------------------------------------------------
-    for start in range(0, full_batch_size, microbatch_size):
-        end = min(start + microbatch_size, full_batch_size)
+
+    for start in range(
+        0,
+        full_batch_size,
+        microbatch_size,
+    ):
+
+        end = min(
+            start + microbatch_size,
+            full_batch_size,
+        )
+
         current_microbatch_size = end - start
 
-        input_ids = train_batch["input_ids"][start:end].to(device)
-        labels = train_batch["labels"][start:end].to(device)
-        response_mask = train_batch["response_mask"][start:end].to(device)
-        advantages_micro = advantages[start:end].to(device)
+
+        input_ids = train_batch[
+            "input_ids"
+        ][start:end].to(device)
+
+        labels = train_batch[
+            "labels"
+        ][start:end].to(device)
+
+        response_mask = train_batch[
+            "response_mask"
+        ][start:end].to(device)
+
+        advantages_micro = (
+            advantages[start:end].to(device)
+        )
+
 
         # ----------------------------------------------
         # 5a. 当前 policy 的 token log-prob + entropy
         # ----------------------------------------------
+
         response_stats = get_response_log_probs(
             model=model,
             input_ids=input_ids,
             labels=labels,
             return_token_entropy=True,
         )
+
         policy_log_probs = response_stats[
             "log_probs"
         ]
+
         token_entropy = response_stats[
             "token_entropy"
         ]
+
+
         # ----------------------------------------------
         # 5b. -A log pi
         # ----------------------------------------------
+
         per_token_loss, loss_metadata = (
             compute_policy_gradient_loss(
                 raw_rewards_or_advantages=advantages_micro,
@@ -163,9 +214,12 @@ def grpo_train_step(
                 importance_reweighting_method="none",
             )
         )
+
+
         # ----------------------------------------------
         # 5c. sequence normalization
         # ----------------------------------------------
+
         microbatch_loss = (
             aggregate_loss_across_microbatch(
                 per_token_policy_gradient_loss=per_token_loss,
@@ -173,6 +227,8 @@ def grpo_train_step(
                 loss_normalization="sequence",
             )
         )
+
+
         # entropy也用同样的sequence averaging做logging
         microbatch_entropy = (
             aggregate_loss_across_microbatch(
@@ -182,9 +238,11 @@ def grpo_train_step(
             )
         )
 
+
         # ----------------------------------------------
         # 5d. 修正 gradient accumulation 的权重
         # ----------------------------------------------
+
         weight = (
             current_microbatch_size
             / full_batch_size
@@ -193,6 +251,7 @@ def grpo_train_step(
         scaled_loss = (
             microbatch_loss * weight
         )
+
 
         # 保存logging用的整个batch loss
         total_loss = (
@@ -205,11 +264,13 @@ def grpo_train_step(
             + microbatch_entropy.detach() * weight
         )
 
+
         # ----------------------------------------------
         # 5e. 累积gradient
         # ----------------------------------------------
 
         scaled_loss.backward()
+
 
     # --------------------------------------------------
     # 6. Gradient norm + clipping
@@ -221,6 +282,7 @@ def grpo_train_step(
             model.parameters(),
             max_grad_norm,
         )
+
     else:
 
         grad_norms = [
@@ -239,6 +301,7 @@ def grpo_train_step(
                 device=device,
             )
 
+
     # --------------------------------------------------
     # 7. 只更新一次参数
     # --------------------------------------------------
@@ -246,6 +309,7 @@ def grpo_train_step(
     optimizer.step()
 
     optimizer.zero_grad()
+
 
     # --------------------------------------------------
     # 8. logging metadata
@@ -260,5 +324,5 @@ def grpo_train_step(
         **reward_metadata,
     }
 
-    return total_loss, metadata
 
+    return total_loss, metadata
